@@ -60,8 +60,17 @@ func addPost(postImage: UIImage, thread: String, username: String) {
     let data = UIImageJPEGRepresentation(postImage, 1.0)! 
     let path = "\(firStorageImagesPath)/\(UUID().uuidString)"
     
-    // YOUR CODE HERE
+    let dateFormatter = DateFormatter()
+    dateFormatter.dateFormat = dateFormat
+    let date = dateFormatter.string(from: Date())
+    
+    let postNodeDict = [firImagePathNode : path, firThreadNode : thread, firUsernameNode : username, firDateNode : date]
+    dbRef.child(firPostsNode).childByAutoId().setValue(postNodeDict)
+    
+    store(data: data, toPath: path)
+    
 }
+
 
 /*
     TODO:
@@ -74,7 +83,11 @@ func addPost(postImage: UIImage, thread: String, username: String) {
 func store(data: Data, toPath path: String) {
     let storageRef = FIRStorage.storage().reference()
     
-    // YOUR CODE HERE
+    storageRef.child(path).put(data, metadata: nil) { (metadata, error) in
+        if let error = error {
+            print(error)
+        }
+    }
 }
 
 
@@ -99,7 +112,31 @@ func getPosts(user: CurrentUser, completion: @escaping ([Post]?) -> Void) {
     let dbRef = FIRDatabase.database().reference()
     var postArray: [Post] = []
     
-    // YOUR CODE HERE
+    dbRef.child(firPostsNode).observeSingleEvent(of: .value, with: {
+        (snapshot) in
+        if snapshot.exists() {
+            if let postsDict = snapshot.value as? [String : AnyObject] {
+                user.getReadPostIDs(completion: { (readPosts) in
+                    for postID in postsDict.keys {
+                        let read = readPosts.contains(postID)
+                        if let postNode = postsDict[postID] as? [String : String]{
+                            let username = postNode[firUsernameNode]
+                            let imagePath = postNode[firImagePathNode]
+                            let thread = postNode[firThreadNode]
+                            let date = postNode[firDateNode]
+                            let post = Post(id: postID, username: username!, postImagePath: imagePath!, thread: thread!, dateString: date!, read: read)
+                            postArray.append(post)
+                        }
+                    }
+                    completion(postArray)
+                })
+            } else {
+                completion(nil)
+            }
+        } else {
+            completion(nil)
+        }
+    })
 }
 
 func getDataFromPath(path: String, completion: @escaping (Data?) -> Void) {

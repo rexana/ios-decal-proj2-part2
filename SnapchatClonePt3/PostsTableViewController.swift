@@ -51,7 +51,7 @@ class PostsTableViewController: UIViewController, UITableViewDelegate, UITableVi
         (Hint): This should be pretty simple.
     */
     override func viewWillAppear(_ animated: Bool) {
-        // YOUR CODE HERE
+        updateData()
     }
 
     override func didReceiveMemoryWarning() {
@@ -71,7 +71,21 @@ class PostsTableViewController: UIViewController, UITableViewDelegate, UITableVi
      
     */
     func updateData() {
-        // YOUR CODE HERE
+        getPosts(user: currentUser, completion: {postArray in
+            if let postArray = postArray {
+                clearThreads()
+                for post in postArray {
+                    addPostToThread(post: post)
+                    getDataFromPath(path: post.postImagePath, completion: {data in
+                        if let data = data {
+                            let image = UIImage(data: data)
+                            self.loadedImagesById[post.postId] = image
+                        }
+                    })
+                }
+                self.postTableView.reloadData()
+            }
+        })
     }
     
     // MARK: Custom methods (relating to UI)
@@ -90,7 +104,7 @@ class PostsTableViewController: UIViewController, UITableViewDelegate, UITableVi
             navigationController?.navigationBar.isHidden = true
             tabBarController?.tabBar.isHidden = true
         } else {
-            let hud = MBProgressHUD.showAdded(to: view, animated: true)
+            _ = MBProgressHUD.showAdded(to: view, animated: true)
             getDataFromPath(path: post.postImagePath, completion: { (data) in
                 if let data = data {
                     let image = UIImage(data: data)
@@ -101,6 +115,8 @@ class PostsTableViewController: UIViewController, UITableViewDelegate, UITableVi
                     // hide the navigation and tab bar for presentation
                     self.navigationController?.navigationBar.isHidden = true
                     self.tabBarController?.tabBar.isHidden = true
+                } else {
+                    MBProgressHUD.hide(for: self.view, animated: true)
                 }
             })
         }
@@ -143,9 +159,7 @@ class PostsTableViewController: UIViewController, UITableViewDelegate, UITableVi
         if let post = getPostFromIndexPath(indexPath: indexPath), !post.read {
             presentPostImage(forPost: post)
             post.read = true
-            
-            // YOUR CODE HERE
-            
+            currentUser.addNewReadPost(postID: post.postId)
             tableView.reloadRows(at: [indexPath], with: .automatic)
         }
      
